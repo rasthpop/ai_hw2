@@ -28,6 +28,8 @@ Only report.md and images/ may be changed; do not touch index.html, assets/ or .
 
 ## 1. Data understanding and preprocessing
 
+![Data preparation pipeline](images/diagram_01_data_pipeline.png)
+
 TODO: class balance, object sizes, objects per frame, and how they vary across sequences. Which observations drove later choices (resolution, anchors, augmentation)?
 
 TODO: annotation conversion, handling of ignored regions and non-target classes, frame sub-sampling step and why.
@@ -40,6 +42,8 @@ TODO: sequence-level split (not frame-level) and why. Same split and metric (COC
 
 ## 2. Two-stage anchor-based: Faster R-CNN
 
+![Faster R-CNN ResNet-50-FPN v2 as configured](images/diagram_02_faster_rcnn.png)
+
 Setup: TODO (ResNet50-FPN v2, COCO weights, anchors 16-256, min/max size 1024/1824, SGD + OneCycle, ...).
 
 | Run (2 ep, subset) | mAP | AP50 | AP_small | ms/img |
@@ -49,13 +53,15 @@ Setup: TODO (ResNet50-FPN v2, COCO weights, anchors 16-256, min/max size 1024/18
 | rpn_high (4000/2000 proposals) | 0.2338 | 0.4857 | 0.1146 | 432 |
 | roi_pos_50 (50% positive RoIs) | 0.2446 | 0.5005 | 0.1282 | 435 |
 
-Final model (6 ep, full data): mAP TODO, AP50 TODO, AP_small TODO, ms/img TODO. Public LB: TODO.
+Final model (6 ep, full data): mAP TODO, AP50 TODO, AP_small TODO, ms/img TODO. Public LB: **0.2961** (`submission_faster_rcnn.csv`).
 
 TODO: what the RPN and the second stage each contribute.
 
 TODO: at least three failure cases with plausible causes (add images).
 
 ## 3. One-stage anchor-based: RetinaNet
+
+![RetinaNet ResNet-50-FPN v2 as configured](images/diagram_03_retinanet.png)
 
 TODO: anchor configuration grounded in object sizes (k-means aspect ratios 0.5 / 1.02 / 2.01; 27.6% of boxes under 32 px after resizing).
 
@@ -73,9 +79,11 @@ TODO: why smaller anchors did not help despite better anchor coverage.
 
 TODO: what removing the proposal stage causes (≈463 background anchors per positive) and how focal loss addresses it.
 
-Final model: mAP TODO. Public LB: TODO. TODO: comparison with tuned Faster R-CNN.
+Final model (checkpoint after 4 of 6 epochs): mAP TODO. Public LB: **0.2131** (`submission_retinanet_ep4.csv`). TODO: comparison with tuned Faster R-CNN.
 
 ## 4. One-stage anchor-free: YOLOv8s
+
+![YOLOv8s as configured](images/diagram_04_yolov8s.png)
 
 TODO: how locations are assigned to objects without anchors (task-aligned assigner) and the effect on small and dense objects.
 
@@ -83,11 +91,13 @@ TODO: how locations are assigned to objects without anchors (task-aligned assign
 |---|---|---|---|---|---|---|
 | TODO | | | | | | |
 
-Final model (input 960): mAP 0.1354, AP50 0.2661, AP_small 0.0569, 22.4 ms/img. Public LB: TODO.
+Final model (input 960): mAP 0.1354, AP50 0.2661, AP_small 0.0569, 22.4 ms/img. Public LB: **0.1365** (`submission_yolo.csv`).
 
 TODO: search range, chosen settings, comparison with anchor-based models broken down by object size.
 
 ## 5. Query-based: RT-DETR-L
+
+![RT-DETR-L as configured](images/diagram_05_rtdetr.png)
 
 | Run (subset) | mAP | AP50 | AP_small | AP_medium | AP_large | AR@300 |
 |---|---|---|---|---|---|---|
@@ -97,7 +107,7 @@ TODO: search range, chosen settings, comparison with anchor-based models broken 
 | denoising queries 300 | 0.0927 | 0.1728 | 0.0437 | 0.0838 | 0.1908 | 0.2950 |
 | matching GIoU weight 4 | 0.0788 | 0.1421 | 0.0294 | 0.0713 | 0.1719 | 0.2861 |
 
-Final model: mAP 0.2821, AP50 0.5246, AP_small 0.1444, AR@300 0.4335. Public LB: TODO.
+Final model: mAP 0.2821, AP50 0.5246, AP_small 0.1444, AR@300 0.4335. Public LB: **0.2530** (`query_based/submission_final.csv`).
 
 TODO: bipartite matching and why no NMS is needed; effect on training dynamics.
 
@@ -107,26 +117,29 @@ TODO: validation mAP over training vs a CNN detector under the same budget (the 
 
 ## 6. Our pipeline
 
+![Final pipeline: continued training and tiled training/prediction](images/diagram_06_own_pipeline.png)
+
 TODO: why Faster R-CNN was chosen as the base (justify from sections 2-5).
 
 TODO: data / inference changes (tiled training and tiled prediction) and model changes (continued training), each evaluated separately.
 
 | Step | mAP | AP50 | AP_small | Public LB |
 |---|---|---|---|---|
-| Tuned Faster R-CNN | | | | |
-| + continued training | | | | |
-| + tiled training | | | | |
-| + tiled prediction | | | | |
+| Tuned Faster R-CNN (6 ep) | | | | 0.2961 |
+| + continued training, full frames (+4 ep, `05`) | | | | 0.2826 |
+| + tiled training (+4 ep from the 6-ep model, `06`) | | | | TODO |
+| + tiled prediction (`06`, submitted) | | | | 0.2662 |
 
 ### Summary of all models
 
 | Model | mAP | AP50 | AP_small | ms/img | Public LB |
 |---|---|---|---|---|---|
-| Faster R-CNN (tuned) | | | | | |
-| RetinaNet (tuned) | | | | | |
-| YOLOv8s | 0.1354 | 0.2661 | 0.0569 | 22.4 | |
-| RT-DETR-L | 0.2821 | 0.5246 | 0.1444 | | |
-| Final pipeline | | | | | |
+| Faster R-CNN (tuned) | | | | | 0.2961 |
+| RetinaNet (tuned, 4 ep) | | | | | 0.2131 |
+| YOLOv8s | 0.1354 | 0.2661 | 0.0569 | 22.4 | 0.1365 |
+| RT-DETR-L | 0.2821 | 0.5246 | 0.1444 | | 0.2530 |
+| Continued training (`05`) | | | | | 0.2826 |
+| Tiled pipeline (`06`) | | | | | 0.2662 |
 
 ### Unsuccessful attempts
 
