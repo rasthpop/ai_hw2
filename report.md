@@ -28,13 +28,66 @@ Only report.md and images/ may be changed; do not touch index.html, assets/ or .
 
 ## 1. Data understanding and preprocessing
 
-TODO: class balance, object sizes, objects per frame, and how they vary across sequences. Which observations drove later choices (resolution, anchors, augmentation)?
+Code: `data_preparation/01_dataprep.ipynb`.
 
-TODO: annotation conversion, handling of ignored regions and non-target classes, frame sub-sampling step and why.
+| | train | val | test |
+|---|---|---|---|
+| clips | 56 | 7 | 48 |
+| frames | 24,201 | 2,846 | 3,811 |
+| objects | 1,105,516 | 114,132 | – |
+| frames with ignore regions | 75 % | 50 % | – |
+| median long side | 1904 px | | 1360 px |
+
+### Class balance
+
+| class | train | val |
+|---|---|---|
+| car | 45.7 % | 27.9 % |
+| person | 29.7 % | 44.1 % |
+| motor | 9.3 % | 10.5 % |
+| van | 4.2 % | 6.0 % |
+| tricycle | 3.7 % | 4.8 % |
+| bicycle | 3.6 % | 5.3 % |
+| truck | 2.8 % | 1.2 % |
+| bus | 0.9 % | 0.2 % |
+
+TODO (your words): long tail (car : bus = 52 : 1 in train); val class mix differs from train (only 7 clips); bus/truck per-class AP on val is noisy (264 and 1,359 instances).
+
+### Object size, density, occlusion
+
+| share of objects (size at 1280 px long side) | < 8 px | < 16 px | < 32 px | < 64 px |
+|---|---|---|---|---|
+| train | 0.6 % | 9.8 % | 54.2 % | 89.0 % |
+| val | 0.7 % | 8.7 % | 48.4 % | 91.1 % |
+
+| per frame | train | val |
+|---|---|---|
+| objects, mean / median / max | 45.7 / 43 / 180 | 40.1 / 37 / 116 |
+| ignore regions (when present) | 3.5 | 2.8 |
+| median ignore coverage (when present) | 1.6 % | 1.4 % |
+| occluded objects | 45.7 % | 59.1 % |
+| truncated by the frame border | 4.3 % | 5.3 % |
+
+TODO (your words): what these mean for the models: input resolution (half the objects are COCO-small), multi-scale necks, permissive NMS and up to 300 detections per image, train frames being larger than test frames (test has 680×382 and 960×540 clips).
+
+### Preprocessing
+
+| step | choice | evidence |
+|---|---|---|
+| split | provided clip-level train/val split, never by frame | consecutive frames are near-duplicates, a frame split leaks |
+| cleaning | check box validity, class ids, COCO vs YOLO labels; deduplicate ignore regions (listed 8× in the json) | nothing had to be removed |
+| sub-sampling | every 3rd frame in train and val (24,201 → 8,090 train frames) | median box IoU of the same object: 0.9 after 1 frame, 0.73 after 3 |
+| ignore regions | train: filled with grey 114, labelled boxes restored; val: kept, marked `iscrowd=1` so COCO eval ignores detections there | regions hold real but unlabelled objects |
+| resolution | torchvision models: short side 1024, long ≤ 1824; YOLO: 960; RT-DETR: 1280 (letterbox) | at 640 px about half the objects fall under 16 px, at 1280 about 10 % |
+| augmentation | random horizontal flip (torchvision); Ultralytics defaults for YOLO / RT-DETR | |
+
+TODO (your words): how GT boxes were verified visually (add a figure), and why you kept the provided split instead of K-fold.
 
 ### Validation design
 
-TODO: sequence-level split (not frame-level) and why. Same split and metric (COCO mAP, AP50, AP_small) for every model. Explain why a single sequence-level split was used instead of K-fold (compute budget), and that parameter studies use a subset (2000 train / 500 val frames, 2 epochs).
+All models are scored with the same pycocotools evaluation on the val clips (mAP, AP50, AP_small, ms/img, max 300 detections). Parameter studies use evenly spaced subsets (2,000 train / 500 val frames, 2 epochs); final models use all frames.
+
+TODO (your words): why a single clip-level split is acceptable here (compute budget) and its limits (7 val clips).
 
 <!-- ![GT boxes on a sample frame](images/gt_sample.png) -->
 
