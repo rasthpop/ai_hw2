@@ -30,66 +30,61 @@ Only report.md and images/ may be changed; do not touch index.html, assets/ or .
 
 Code: `data_preparation/01_dataprep.ipynb`.
 
-| | train | val | test |
-|---|---|---|---|
-| clips | 56 | 7 | 48 |
-| frames | 24,201 | 2,846 | 3,811 |
-| objects | 1,105,516 | 114,132 | – |
-| frames with ignore regions | 75 % | 50 % | – |
-| median long side | 1904 px | | 1360 px |
-
 ### Class balance
 
-| class | train | val |
-|---|---|---|
-| car | 45.7 % | 27.9 % |
-| person | 29.7 % | 44.1 % |
-| motor | 9.3 % | 10.5 % |
-| van | 4.2 % | 6.0 % |
-| tricycle | 3.7 % | 4.8 % |
-| bicycle | 3.6 % | 5.3 % |
-| truck | 2.8 % | 1.2 % |
-| bus | 0.9 % | 0.2 % |
+![Class distribution in train and val](images/eda_class_balance.png)
 
-TODO (your words): long tail (car : bus = 52 : 1 in train); val class mix differs from train (only 7 clips); bus/truck per-class AP on val is noisy (264 and 1,359 instances).
+TODO (your words): long tail, val class mix differs from train, rare classes are noisy on val.
 
-### Object size, density, occlusion
+### Object size
 
-| share of objects (size at 1280 px long side) | < 8 px | < 16 px | < 32 px | < 64 px |
-|---|---|---|---|---|
-| train | 0.6 % | 9.8 % | 54.2 % | 89.0 % |
-| val | 0.7 % | 8.7 % | 48.4 % | 91.1 % |
+![Object size distribution at a 1280 px input](images/eda_object_size.png)
 
-| per frame | train | val |
-|---|---|---|
-| objects, mean / median / max | 45.7 / 43 / 180 | 40.1 / 37 / 116 |
-| ignore regions (when present) | 3.5 | 2.8 |
-| median ignore coverage (when present) | 1.6 % | 1.4 % |
-| occluded objects | 45.7 % | 59.1 % |
-| truncated by the frame border | 4.3 % | 5.3 % |
+TODO (your words): about half of the objects are COCO-small, what that means for the input resolution and multi-scale necks.
 
-TODO (your words): what these mean for the models: input resolution (half the objects are COCO-small), multi-scale necks, permissive NMS and up to 300 detections per image, train frames being larger than test frames (test has 680×382 and 960×540 clips).
+### Image resolution
+
+![Frame resolution in train, val and test](images/eda_resolution.png)
+
+TODO (your words): train frames are larger than test frames, so everything is resized to a fixed network input.
+
+### Scene density and ignore regions
+
+![Objects per frame and ignore-region coverage](images/eda_density_ignore.png)
+
+TODO (your words): crowded frames, permissive NMS and up to 300 detections, how often ignore regions appear.
+
+### Occlusion and truncation
+
+![Occlusion and truncation per class](images/eda_occlusion.png)
+
+TODO (your words)
+
+### Ground-truth check
+
+![Ground-truth boxes (coloured) and ignore regions (grey) on sample frames](images/eda_sample_frames.png)
+
+TODO (your words): conversion verified visually.
 
 ### Preprocessing
 
-| step | choice | evidence |
-|---|---|---|
-| split | provided clip-level train/val split, never by frame | consecutive frames are near-duplicates, a frame split leaks |
-| cleaning | check box validity, class ids, COCO vs YOLO labels; deduplicate ignore regions (listed 8× in the json) | nothing had to be removed |
-| sub-sampling | every 3rd frame in train and val (24,201 → 8,090 train frames) | median box IoU of the same object: 0.9 after 1 frame, 0.73 after 3 |
-| ignore regions | train: filled with grey 114, labelled boxes restored; val: kept, marked `iscrowd=1` so COCO eval ignores detections there | regions hold real but unlabelled objects |
-| resolution | torchvision models: short side 1024, long ≤ 1824; YOLO: 960; RT-DETR: 1280 (letterbox) | at 640 px about half the objects fall under 16 px, at 1280 about 10 % |
-| augmentation | random horizontal flip (torchvision); Ultralytics defaults for YOLO / RT-DETR | |
+![Box IoU of the same object between frames, used to choose the sub-sampling stride](images/prep_frame_subsampling.png)
 
-TODO (your words): how GT boxes were verified visually (add a figure), and why you kept the provided split instead of K-fold.
+TODO (your words): every 3rd frame, why.
+
+![Ignore regions masked in a training frame](images/prep_ignore_masking.png)
+
+TODO (your words): train frames masked, val unmasked with `iscrowd=1`.
+
+![Share of tiny objects at each input size](images/prep_input_resolution.png)
+
+TODO (your words): input sizes per model.
 
 ### Validation design
 
 All models are scored with the same pycocotools evaluation on the val clips (mAP, AP50, AP_small, ms/img, max 300 detections). Parameter studies use evenly spaced subsets (2,000 train / 500 val frames, 2 epochs); final models use all frames.
 
 TODO (your words): why a single clip-level split is acceptable here (compute budget) and its limits (7 val clips).
-
-<!-- ![GT boxes on a sample frame](images/gt_sample.png) -->
 
 ## 2. Two-stage anchor-based: Faster R-CNN
 
