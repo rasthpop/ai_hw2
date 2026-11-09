@@ -28,8 +28,6 @@ Only report.md and images/ may be changed; do not touch index.html, assets/ or .
 
 ## 1. Data understanding and preprocessing
 
-![Data preparation pipeline](images/diagram_01_data_pipeline.png)
-
 TODO: class balance, object sizes, objects per frame, and how they vary across sequences. Which observations drove later choices (resolution, anchors, augmentation)?
 
 TODO: annotation conversion, handling of ignored regions and non-target classes, frame sub-sampling step and why.
